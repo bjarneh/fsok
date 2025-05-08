@@ -77,6 +77,48 @@ def niceopt(argv, short_opts, long_opts):
 
 
 
+def store_state():
+    """
+    If a search string is present, write it to $PWD/.fsok_state.txt
+    and read it back next time we start the program, otherwise
+    remove that file.
+    """
+    global searchstr
+    try:
+        pwd = os.getcwd()
+        state_file = os.path.join(pwd, ".fsok.state.txt")
+        if len(searchstr) == 0:
+            if os.path.isfile(state_file):
+                easylog("removing state_file: {}".format(state_file))
+                os.remove(state_file)
+        else:
+            easylog("writing state {}, to state_file: {}".format(''.join(searchstr), state_file))
+            with open(state_file,'w') as f:
+                f.write(''.join(searchstr))
+    except Exception as inst:
+        pass
+
+
+def restore_state():
+    """
+    If the file $PWD/.fsok_state.txt is present, read searchstr from it
+    """
+    global searchstr
+    easylog("called: restore_state()")
+    try:
+        pwd = os.getcwd()
+        state_file = os.path.join(pwd, ".fsok.state.txt")
+        if os.path.isfile(state_file):
+            with open(state_file,'r') as f:
+                content = f.read().strip()
+                easylog("read state {}, from state_file: {}".format(content, state_file))
+                if content:
+                    searchstr = list(content)
+                    search_files()
+    except Exception as inst:
+        pass
+
+
 def quit_peacefully(*args):
     """
     Reset terminal and exit. We need arguments
@@ -84,6 +126,7 @@ def quit_peacefully(*args):
     actual signal to function when Ctrl+C is pressed.
     Not used for anything here...
     """
+    store_state()
     curses.nocbreak()
     curses.echo()
     curses.endwin()
@@ -246,8 +289,11 @@ def mainloop():
     global treeview
     global fzf_match
 
-    while True:
+    # from state
+    search_files()
 
+    while True:
+        
         drawscreen()
         dosearch = True
 
@@ -322,7 +368,8 @@ def drawscreen():
     global spacer
     global fzf_match
 
-    icon = "✈"
+    #icon = "✈"
+    icon = ">"
 
     match_type = "[reg]"
     if fzf_match:
@@ -512,6 +559,7 @@ def main():
     find_files()
     bind_ctrlc_etc()
     mainscreen = init_curses_screen()
+    restore_state()
     mainloop()
     quit_peacefully()
 
